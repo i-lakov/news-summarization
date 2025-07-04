@@ -14,7 +14,7 @@ en_min      = st.sidebar.slider("EN summary min length", 20, 200, 80)
 en_max      = st.sidebar.slider("EN summary max length", en_min, 400, 200)
 bg_max      = st.sidebar.slider("BG summary max length", 50, 400, 200)
 
-st.title("Bulgarian News Summarizer 🔎📰")
+st.title("Bulgarian News Summarizer")
 st.write("""
 Enter one or more RSS feed URLs (one per line), or just click **Run** to summarize
 all configured sites.
