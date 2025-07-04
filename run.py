@@ -1,7 +1,3 @@
-# run.py
-# Orchestrator for scraping, deduplicating, and summarizing Bulgarian news articles.
-# requirements: see scraping.py and summarize.py
-
 import logging
 import time
 from scraping import scrape_all, dedupe_articles
@@ -68,12 +64,11 @@ if __name__ == '__main__':
     configure_logging()
     logging.info("Starting news summarization pipeline…")
 
-    # PARAMETERS — tweak these for longer/shorter summaries
-    MAX_PER_SITE     = 5
+    MAX_PER_SITE     = 3
     DEDUPE_THRESHOLD = 0.85
-    EN_MIN_LEN       = 80    # e.g. at least 80 tokens in the EN summary
-    EN_MAX_LEN       = 300   # up to 300 tokens in the EN summary
-    BG_MAX_LEN       = 300   # up to 300 tokens in the BG translation back
+    EN_MIN_LEN       = 80    # tokens
+    EN_MAX_LEN       = 300   # tokens
+    BG_MAX_LEN       = 300   # tokens
 
     summaries = summarize_news(
         MAX_PER_SITE,
@@ -86,7 +81,6 @@ if __name__ == '__main__':
     with open("results.json", "w", encoding="utf‑8") as f:
         json.dump(summaries, f, ensure_ascii=False, indent=2)
 
-    # PRINT OUT
     print("\n" + "="*80)
     print("FINAL SUMMARIES:\n")
     for i, item in enumerate(summaries, start=1):

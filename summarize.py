@@ -1,7 +1,3 @@
-# summarize.py
-# requirements:
-#   pip install torch transformers sentencepiece
-
 import logging
 from transformers import (
     MarianTokenizer, MarianMTModel,
@@ -12,7 +8,7 @@ import torch
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# 1) BG → EN translation
+# 1) BG -> EN translation
 BG_EN_MODEL = "Helsinki-NLP/opus-mt-bg-en"
 tok_bg_en   = MarianTokenizer.from_pretrained(BG_EN_MODEL, use_fast=False)
 model_bg_en = MarianMTModel.from_pretrained(BG_EN_MODEL).to(DEVICE)
@@ -25,17 +21,14 @@ summarizer  = hf_pipeline(
     device=0 if DEVICE=="cuda" else -1
 )
 
-# 3) EN → BG translation
+# 3) EN -> BG translation
 EN_BG_MODEL = "Helsinki-NLP/opus-mt-en-bg"
 tok_en_bg   = MarianTokenizer.from_pretrained(EN_BG_MODEL, use_fast=False)
 model_en_bg = MarianMTModel.from_pretrained(EN_BG_MODEL).to(DEVICE)
 
-# Initialize summarizer tokenizer just once
 summarizer_tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
 
 def translate(text: str, tokenizer, model, max_length: int = 512) -> str:
-    """Generic Marian translate helper."""
-    # clamp to the tokenizer's hard max length
     hard_max = tokenizer.model_max_length
     use_len = min(max_length, hard_max)
  
@@ -71,14 +64,14 @@ def summarize_bg(text: str, en_min_length=40, en_max_length=200, bg_max_length=1
         return {"en_summary": "", "bg_summary": ""}
 
     try:
-        # Step 1: Translate BG → EN
+        # Step 1: Translate BG -> EN
         en = translate(text, tok_bg_en, model_bg_en, max_length=600)
 
         # Step 2: Tokenize EN translation
         input_tokens = summarizer_tokenizer.encode(en, truncation=True, max_length=1024)
         input_len = len(input_tokens)
 
-        # Heuristic: summary should be ~30–60% of the input length
+        # Summary should be ~30–60% of the input length
         max_len = min(int(input_len * 0.6), en_max_length)
         min_len = min(int(input_len * 0.3), en_min_length)
 
@@ -90,7 +83,7 @@ def summarize_bg(text: str, en_min_length=40, en_max_length=200, bg_max_length=1
             truncation=True
         )[0]['summary_text']
 
-        # Step 4: Translate EN summary → BG
+        # Step 4: Translate EN summary -> BG
         bg = translate(summary, tok_en_bg, model_en_bg, max_length=bg_max_length)
 
         return {
@@ -102,7 +95,6 @@ def summarize_bg(text: str, en_min_length=40, en_max_length=200, bg_max_length=1
         logging.error(f"Summarization failed: {e}")
         return {"en_summary": "", "bg_summary": ""}
 
-# quick test
 if __name__ == "__main__":
     sample = (
         "България влиза в ЕС през 2007 година. "

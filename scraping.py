@@ -1,6 +1,3 @@
-# scraping.py
-# requirements: newspaper3k feedparser beautifulsoup4 requests torch sentence-transformers
-
 import feedparser
 from newspaper import Article
 from bs4 import BeautifulSoup
@@ -8,7 +5,6 @@ import requests
 from sentence_transformers import SentenceTransformer, util
 import torch
 
-# 1. Configuration for each site
 SITES = {
     "bnt": {
         "rss": "https://news.bnt.bg/bg/rss/news.xml",
@@ -25,7 +21,6 @@ SITES = {
         "title_sel": "h1.article-title",
         "body_sel": "div.article-body p"
     }
-    # add more sites here...
 }
 
 def get_article_urls(rss_url, max_articles):
@@ -39,7 +34,7 @@ def fetch_full_text(url, cfg):
     if len(art.text) > 200:
         return art.title, art.text
 
-    # Fallback to BS4 with site‐specific selectors
+    # Fallback to BS4 with site‐specific selectors - currently unused in reality
     resp = requests.get(url, timeout=10)
     soup = BeautifulSoup(resp.content, 'html.parser')
     title = soup.select_one(cfg["title_sel"]).get_text(strip=True)
@@ -76,6 +71,7 @@ def dedupe_articles(articles, threshold=0.85, model_name="sentence-transformers/
                 break
         if not is_dup:
             keep.append(idx)
+
     # Return deduped list preserving original order
     return [articles[i] for i in keep]
 

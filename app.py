@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 from scraping import scrape_all, dedupe_articles
 from summarize import summarize_bg

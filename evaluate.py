@@ -1,14 +1,9 @@
-# evaluate.py
-# requirements:
-#   pip install rouge-score pandas bert-score
-
 import json
 import pandas as pd
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
 
 class SplitTokenizer:
-    """Simple whitespace tokenizer for RougeScorer."""
     def tokenize(self, text: str):
         return text.split()
 
@@ -42,8 +37,8 @@ def evaluate_with_bertscore(results):
     """
     refs = [it["text"] for it in results]
     hyps = [it["bg_summary"] for it in results]
-    # lang="bg" uses a multilingual checkpoint under the hood
-    P, R, F1 = bert_score(hyps, refs, lang="bg", model_type="xlm-roberta-base", verbose=False)
+
+    _, _, F1 = bert_score(hyps, refs, lang="bg", model_type="xlm-roberta-base", verbose=False)
     return F1.tolist()
 
 if __name__ == "__main__":
