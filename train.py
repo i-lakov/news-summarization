@@ -1,4 +1,3 @@
-import json
 import torch
 import transformers
 from transformers import (
@@ -10,7 +9,7 @@ from transformers import (
 )
 from datasets import load_dataset
 import numpy as np
-import matplotlib.pyplot as plt  # Added for plotting
+import matplotlib.pyplot as plt
 
 # Verify environments
 print(f"PyTorch version: {torch.__version__}")
@@ -23,7 +22,7 @@ dataset = load_dataset('json', data_files={
     'validation': 'data/validation.jsonl'
 })
 
-# Initialize mT5 model
+# Initialize mT5
 model = MT5ForConditionalGeneration.from_pretrained(
     "google/mt5-base",
     use_safetensors=True
@@ -83,7 +82,7 @@ data_collator = DataCollatorForSeq2Seq(
     pad_to_multiple_of=8
 )
 
-# Training arguments (Improved)
+# Training arguments
 training_args = Seq2SeqTrainingArguments(
     output_dir="./results",
     evaluation_strategy="epoch",
@@ -134,7 +133,6 @@ class LossCallback(transformers.TrainerCallback):
 loss_callback = LossCallback()
 trainer.add_callback(loss_callback)
 
-# Train
 trainer.train()
 
 # Save model & tokenizer
@@ -148,5 +146,5 @@ plt.title("Training Loss Curve")
 plt.xlabel("Step")
 plt.ylabel("Loss")
 plt.grid(True)
-plt.savefig("training_curve.png")  # Saves to file
+plt.savefig("training_curve.png")
 plt.show()

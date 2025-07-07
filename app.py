@@ -1,6 +1,6 @@
 import streamlit as st
 from scraping import scrape_all, dedupe_articles
-from summarize import summarize_bg
+from summarize_finetuned import summarize_bg
 
 st.set_page_config(
     page_title="BG News Summarizer",
@@ -10,9 +10,8 @@ st.set_page_config(
 st.sidebar.title("Parameters")
 max_per_site = st.sidebar.slider("Articles per site", 1, 10, 3)
 dedupe_thr  = st.sidebar.slider("Dedup threshold", 0.70, 0.95, 0.85, 0.01)
-en_min      = st.sidebar.slider("EN summary min length", 20, 200, 80)
-en_max      = st.sidebar.slider("EN summary max length", en_min, 400, 300)
-bg_max      = st.sidebar.slider("BG summary max length", 50, 400, 300)
+en_min      = st.sidebar.slider("EN summary min length", 5, 50, 10)
+en_max      = st.sidebar.slider("EN summary max length", en_min, 100, 70)
 
 st.title("Bulgarian News Summarizer")
 st.write("""
@@ -56,9 +55,8 @@ if st.button("Run summarization"):
 
         out = summarize_bg(
             art["text"],
-            en_min_length=en_min,
-            en_max_length=en_max,
-            bg_max_length=bg_max
+            min_length=en_min,
+            max_length=en_max
         )
-        st.write("**EN summary:**", out["en_summary"])
-        st.write("**BG summary:**", out["bg_summary"])
+
+        st.write("**Summary:**", out["bg_summary"])
