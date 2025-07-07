@@ -1,76 +1,87 @@
-import json
-import pandas as pd
+import torch
+from transformers import (
+    MT5ForConditionalGeneration,
+    AutoTokenizer,
+    pipeline,
+    logging
+)
+from datasets import load_dataset
 from rouge_score import rouge_scorer
-from bert_score import score as bert_score
+import bert_score
+import warnings
 
-class SplitTokenizer:
-    def tokenize(self, text: str):
-        return text.split()
+logging.set_verbosity_error()
+warnings.filterwarnings("ignore", category=UserWarning)
 
-def load_results(path="results.json"):
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+print("Load model and tokenizer")
+print(f"CUDA: { torch.cuda.is_available()}")
+model = MT5ForConditionalGeneration.from_pretrained("best_model")
+tokenizer = AutoTokenizer.from_pretrained("best_model", use_fast=True)
 
-def evaluate_with_rouge(results):
-    """
-    Returns a list of dicts:
-      { 'rouge-1': float, 'rouge-L': float }
-    """
-    scorer = rouge_scorer.RougeScorer(
-        ["rouge1", "rougeL"],
-        use_stemmer=False,
-        tokenizer=SplitTokenizer()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
+print("Load test data")
+test_dataset = load_dataset('json', data_files={'test': 'data/test.jsonl'})['test']
+
+print("Summarization pipeline with headline task")
+summarizer = pipeline(
+    task="summarization",
+    model=model,
+    tokenizer=tokenizer,
+    device=0 if torch.cuda.is_available() else -1,
+    framework="pt",
+    truncation=True
+)
+
+inputs = ["headline: " + example["text"] for example in test_dataset]
+references = [example["summary"] for example in test_dataset]
+
+print("Batch prediction")
+predictions = []
+batch_size = 8
+
+for i in range(0, len(inputs), batch_size):
+    batch = inputs[i:i + batch_size]
+    results = summarizer(
+        batch,
+        max_length=70,
+        min_length=5,
+        do_sample=False,
+        truncation=True,
+        no_repeat_ngram_size=2,
+        early_stopping=True,
+        length_penalty=1.0
     )
-    rows = []
-    for item in results:
-        ref, hyp = item["text"], item["bg_summary"]
-        scores = scorer.score(ref, hyp)
-        rows.append({
-            "rouge-1": scores["rouge1"].fmeasure,
-            "rouge-L": scores["rougeL"].fmeasure
-        })
-    return rows
+    predictions.extend([result["summary_text"] for result in results])
 
-def evaluate_with_bertscore(results):
-    """
-    Returns a list of BERTScore F1 floats.
-    """
-    refs = [it["text"] for it in results]
-    hyps = [it["bg_summary"] for it in results]
+# Calculate metrics
+print("Calculate metrics")
+scorer = rouge_scorer.RougeScorer(["rouge1", "rougeL"], use_stemmer=True)
+rouge_scores = {"rouge1": [], "rougeL": []}
 
-    _, _, F1 = bert_score(hyps, refs, lang="bg", model_type="xlm-roberta-base", verbose=False)
-    return F1.tolist()
+for ref, pred in zip(references, predictions):
+    scores = scorer.score(ref, pred)
+    rouge_scores["rouge1"].append(scores["rouge1"].fmeasure)
+    rouge_scores["rougeL"].append(scores["rougeL"].fmeasure)
 
-if __name__ == "__main__":
-    results = load_results()
+_, _, bert_f1 = bert_score.score(
+    predictions,
+    references,
+    lang="bg",
+    model_type="bert-base-multilingual-cased",
+    device=device
+)
 
-    # Compute metrics
-    rouge_rows = evaluate_with_rouge(results)
-    bert_f1s   = evaluate_with_bertscore(results)
+print("\n=== Evaluation Results ===")
+print(f"ROUGE-1: {sum(rouge_scores['rouge1'])/len(rouge_scores['rouge1']):.4f}")
+print(f"ROUGE-L: {sum(rouge_scores['rougeL'])/len(rouge_scores['rougeL']):.4f}")
+print(f"BERTScore F1: {bert_f1.mean().item():.4f}")
 
-    # Build DataFrame
-    records = []
-    for item, rr, bf in zip(results, rouge_rows, bert_f1s):
-        records.append({
-            "site":     item["site"],
-            "url":      item["url"],
-            "rouge-1":  rr["rouge-1"],
-            "rouge-L":  rr["rouge-L"],
-            "bert-F1":  bf
-        })
-    df = pd.DataFrame(records)
-
-    # Compute average row
-    avg = df[["rouge-1", "rouge-L", "bert-F1"]].mean().to_frame().T
-    avg.insert(0, "url", "")
-    avg.insert(0, "site", "AVERAGE")
-
-    # Final table
-    final = pd.concat([df, avg], ignore_index=True)
-
-    # Display
-    print(final.to_string(index=False, float_format="%.4f"))
-
-    # Save
-    final.to_csv("evaluation.csv", index=False, float_format="%.4f")
-    print("\nSaved detailed scores to evaluation.csv")
+# Save predictions
+with open("predictions_samples.txt", "w", encoding="utf-8") as f:
+    for i in range(len(test_dataset)):
+        f.write(f"=== Example {i+1} ===\n")
+        f.write(f"Original: {test_dataset[i]['text'][:500]}...\n")
+        f.write(f"Reference: {test_dataset[i]['summary']}\n")
+        f.write(f"Predicted: {predictions[i]}\n\n")
