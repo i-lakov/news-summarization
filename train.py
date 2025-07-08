@@ -38,11 +38,11 @@ def preprocess_function(examples):
     targets = []
     for i in range(len(examples["text"])):
         text = examples["text"][i].strip()
-        summary = examples["summary"][i].strip()
+        summary = examples["summary"][i].strip()        
         if not text or not summary or len(summary.split()) < 3:
             continue
-        inputs.append("headline: " + text)
-        targets.append(summary)
+        inputs.append("summarize: " + text)
+        targets.append(summary)        
     
     model_inputs = tokenizer(
         inputs,
@@ -53,7 +53,7 @@ def preprocess_function(examples):
     with tokenizer.as_target_tokenizer():
         labels = tokenizer(
             targets,
-            max_length=25,
+            max_length=100,
             truncation=True,
             padding="max_length"
         )
@@ -88,11 +88,11 @@ training_args = Seq2SeqTrainingArguments(
     evaluation_strategy="epoch",
     save_strategy="epoch",
     learning_rate=3e-5,
-    per_device_train_batch_size=2,
+    per_device_train_batch_size=1,
     per_device_eval_batch_size=1,
     weight_decay=0.01,
     save_total_limit=2,
-    num_train_epochs=10,
+    num_train_epochs=8,
     predict_with_generate=True,
     fp16=False,
     load_best_model_at_end=True,
@@ -104,6 +104,7 @@ training_args = Seq2SeqTrainingArguments(
     report_to="none",
     optim="adafactor",
     warmup_ratio=0.1,
+    generation_max_length=100
 )
 
 trainer = Seq2SeqTrainer(
