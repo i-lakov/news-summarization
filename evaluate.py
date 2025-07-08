@@ -2,7 +2,6 @@ import torch
 from transformers import (
     MT5ForConditionalGeneration,
     AutoTokenizer,
-    pipeline,
     logging
 )
 from datasets import load_dataset
@@ -20,61 +19,52 @@ tokenizer = AutoTokenizer.from_pretrained("best_model", use_fast=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
+model.eval()
 
 print("Load test data")
 test_dataset = load_dataset('json', data_files={'test': 'data/test.jsonl'})['test']
-
-print("Summarization pipeline with headline task")
-summarizer = pipeline(
-    task="summarization",
-    model=model,
-    tokenizer=tokenizer,
-    device=0 if torch.cuda.is_available() else -1,
-    framework="pt",
-    truncation=True
-)
 
 inputs = ["summarize: " + example["text"] for example in test_dataset]
 references = [example["summary"] for example in test_dataset]
 
 print("Optimized batch prediction")
 predictions = []
-batch_size = 4  # Adjust based on GPU memory
+batch_size = 4
 
-for i in range(0, len(inputs), batch_size):
-    batch_inputs = inputs[i:i + batch_size]
-    
-    # Tokenize with padding and truncation
-    tokenized = tokenizer(
-        batch_inputs,
-        padding=True,
-        truncation=True,
-        max_length=1024,  # Adjust based on model's max length
-        return_tensors="pt"
-    ).to(device)
-    
-    # Generate summaries
-    summary_ids = model.generate(
-        input_ids=tokenized.input_ids,
-        attention_mask=tokenized.attention_mask,
-        max_length=100,  # Increased from 70 to 100
-        min_length=30,    # Optional: Increase min length
-        no_repeat_ngram_size=2,
-        early_stopping=True,
-        length_penalty=1.5,
-        num_beams=4,  # Beam search often better than greedy
-        do_sample=False
-    )
-    
-    # Decode without special tokens + cleanup
-    batch_preds = tokenizer.batch_decode(
-        summary_ids,
-        skip_special_tokens=True,
-        clean_up_tokenization_spaces=True
-    )
-    predictions.extend(batch_preds)
+with torch.no_grad():
+    for i in range(0, len(inputs), batch_size):
+       batch_inputs = inputs[i:i + batch_size]
+       
+       # Tokenize with padding and truncation
+       tokenized = tokenizer(
+           batch_inputs,
+           padding=True,
+           truncation=True,
+           max_length=1024,
+           return_tensors="pt"
+       ).to(device)
+       
+       # Generate summaries
+       summary_ids = model.generate(
+           input_ids=tokenized.input_ids,
+           attention_mask=tokenized.attention_mask,
+           max_length=100,
+           min_length=30,
+           no_repeat_ngram_size=2,
+           early_stopping=True,
+           length_penalty=1.5,
+           num_beams=4,
+           do_sample=False
+       )
+       
+       # Decode without special tokens + cleanup
+       batch_preds = tokenizer.batch_decode(
+           summary_ids,
+           skip_special_tokens=True,
+           clean_up_tokenization_spaces=True
+       )
+       predictions.extend(batch_preds)
 
-# Calculate metrics
 print("Calculate metrics")
 scorer = rouge_scorer.RougeScorer(["rouge1", "rougeL"], use_stemmer=True)
 rouge_scores = {
@@ -99,12 +89,11 @@ _, _, bert_f1 = bert_score.score(
 )
 
 print("\n=== Evaluation Results ===")
-# Print ROUGE-1 metrics
+
 print(f"ROUGE-1 Precision: {sum(rouge_scores['rouge1']['precision']) / len(rouge_scores['rouge1']['precision']):.4f}")
 print(f"ROUGE-1 Recall: {sum(rouge_scores['rouge1']['recall']) / len(rouge_scores['rouge1']['recall']):.4f}")
 print(f"ROUGE-1 F1: {sum(rouge_scores['rouge1']['f1']) / len(rouge_scores['rouge1']['f1']):.4f}")
 
-# Print ROUGE-L metrics
 print(f"ROUGE-L Precision: {sum(rouge_scores['rougeL']['precision']) / len(rouge_scores['rougeL']['precision']):.4f}")
 print(f"ROUGE-L Recall: {sum(rouge_scores['rougeL']['recall']) / len(rouge_scores['rougeL']['recall']):.4f}")
 print(f"ROUGE-L F1: {sum(rouge_scores['rougeL']['f1']) / len(rouge_scores['rougeL']['f1']):.4f}")

@@ -73,7 +73,6 @@ tokenized_datasets = dataset.map(
     remove_columns=dataset["train"].column_names
 )
 
-# Data collator
 data_collator = DataCollatorForSeq2Seq(
     tokenizer,
     model=model,
@@ -82,7 +81,6 @@ data_collator = DataCollatorForSeq2Seq(
     pad_to_multiple_of=8
 )
 
-# Training arguments
 training_args = Seq2SeqTrainingArguments(
     output_dir="./results",
     evaluation_strategy="epoch",
@@ -115,7 +113,6 @@ trainer = Seq2SeqTrainer(
     data_collator=data_collator,
 )
 
-# Loss callback with tracking
 class LossCallback(transformers.TrainerCallback):
     def __init__(self):
         self.losses = []

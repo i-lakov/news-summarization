@@ -10,8 +10,8 @@ st.set_page_config(
 st.sidebar.title("Parameters")
 max_per_site = st.sidebar.slider("Articles per site", 1, 10, 3)
 dedupe_thr  = st.sidebar.slider("Dedup threshold", 0.70, 0.95, 0.85, 0.01)
-en_min      = st.sidebar.slider("EN summary min length", 5, 50, 10)
-en_max      = st.sidebar.slider("EN summary max length", en_min, 100, 70)
+en_min      = st.sidebar.slider("Summary min length", 10, 50, 30)
+en_max      = st.sidebar.slider("Summary max length", en_min, 120, 100)
 
 st.title("Bulgarian News Summarizer")
 st.write("""
